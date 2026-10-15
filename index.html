@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Arena — Interactive Diarization Leaderboard</title>
+  <style>
+    :root {
+      --ink: #182132;
+      --muted: #61708a;
+      --line: #d8e0ec;
+      --surface: #ffffff;
+      --canvas: #f4f7fb;
+      --navy: #121a2b;
+      --blue: #2d63d7;
+      --blue-soft: #eaf1ff;
+      --purple: #6741d9;
+      --purple-soft: #f0ebff;
+      --teal: #078b78;
+      --teal-soft: #e6f7f3;
+      --amber: #a86a00;
+      --amber-soft: #fff4d9;
+      --red: #b83e31;
+      --red-soft: #fff0ed;
+      --shadow: 0 10px 30px rgba(25, 45, 80, .07);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, select { font: inherit; }
+    button { cursor: pointer; }
+    .top-note { background: var(--navy); color: #e9eef8; text-align: center; padding: 9px 20px; font-size: 12px; letter-spacing: .01em; }
+    .shell { max-width: 1500px; margin: 0 auto; padding: 28px 34px 42px; }
+    .nav { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 42px; }
+    .brand { font-size: 26px; font-weight: 800; letter-spacing: -.04em; color: var(--ink); }
+    .brand span { color: var(--blue); }
+    .nav-links { display: flex; gap: 27px; align-items: center; color: var(--muted); font-size: 14px; }
+    .nav-link { border: 0; background: transparent; color: inherit; padding: 8px 0; }
+    .nav-link.active { color: var(--ink); font-weight: 750; border-bottom: 2px solid var(--blue); }
+    .hero { margin-bottom: 30px; }
+    h1 { margin: 0 0 10px; font-size: clamp(32px, 4vw, 48px); letter-spacing: -.045em; line-height: 1.03; }
+    .hero p { margin: 0; max-width: 920px; color: var(--muted); font-size: 18px; }
+    .control-grid { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 22px; margin-bottom: 26px; }
+    .control-group label, .field-label { display: block; color: var(--muted); font-size: 12px; font-weight: 750; margin-bottom: 8px; }
+    .segmented, .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .segmented { background: #e9edf4; border-radius: 12px; padding: 4px; }
+    .segmented button, .pill { border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--muted); padding: 9px 13px; white-space: nowrap; }
+    .segmented button.active { background: white; border-color: #d8e0ec; color: var(--ink); box-shadow: 0 2px 5px rgba(25,45,80,.08); font-weight: 750; }
+    .pill { border-color: var(--line); background: white; color: var(--ink); border-radius: 999px; padding: 8px 15px; }
+    .pill.active { background: var(--blue); color: white; border-color: var(--blue); font-weight: 750; }
+    .filters { display: flex; flex-wrap: wrap; gap: 9px; align-items: end; margin-bottom: 24px; }
+    .filter { display: flex; flex-direction: column; gap: 6px; }
+    .filter select { border: 1px solid var(--line); border-radius: 999px; background: white; padding: 9px 13px; color: var(--ink); min-width: 130px; }
+    .protocol { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; padding: 14px 18px; border: 1px solid #bbd0fb; border-radius: 12px; background: var(--blue-soft); color: #23468f; margin-bottom: 24px; font-size: 13px; }
+    .protocol strong { font-weight: 800; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 410px; gap: 22px; align-items: start; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 940px; }
+    th { text-align: left; color: var(--muted); font-size: 12px; font-weight: 800; padding: 15px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    td { padding: 16px 12px; border-bottom: 1px solid #edf0f5; vertical-align: middle; font-size: 13px; }
+    tr:last-child td { border-bottom: 0; }
+    .tier-row td { padding: 11px 12px; background: #f8fafc; color: #4a638d; font-weight: 800; font-size: 12px; }
+    .system-name { font-size: 15px; font-weight: 800; margin-bottom: 6px; }
+    .system-meta { color: var(--muted); line-height: 1.45; }
+    .badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; }
+    .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 8px; font-size: 11px; font-weight: 800; }
+    .badge.open { color: var(--purple); background: var(--purple-soft); }
+    .badge.api { color: #087c91; background: #e6f7fb; }
+    .badge.asr { color: var(--amber); background: var(--amber-soft); }
+    .badge.exposed { color: var(--red); background: var(--red-soft); }
+    .badge.good { color: var(--teal); background: var(--teal-soft); }
+    .badge.warn { color: var(--amber); background: var(--amber-soft); }
+    .score { font-size: 17px; font-weight: 850; white-space: nowrap; }
+    .ci { color: var(--muted); margin-top: 4px; white-space: nowrap; }
+    .metric-bar { width: 116px; height: 7px; background: #eef2f8; border-radius: 99px; position: relative; margin-top: 7px; }
+    .metric-bar span { position: absolute; top: -3px; width: 13px; height: 13px; border: 2px solid var(--blue); background: white; border-radius: 50%; transform: translateX(-50%); }
+    .metric-bar i { position: absolute; top: 1px; height: 5px; border-radius: 99px; background: #b9caf2; }
+    .status { display: inline-flex; padding: 6px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; line-height: 1.2; }
+    .status.neutral { color: var(--amber); background: var(--amber-soft); }
+    .status.bad { color: var(--red); background: var(--red-soft); }
+    .status.info { color: #3c557c; background: #edf2f8; }
+    .select-system { width: 18px; height: 18px; accent-color: var(--blue); }
+    .table-foot { display: flex; justify-content: space-between; gap: 14px; padding: 13px 17px; color: var(--muted); border-top: 1px solid var(--line); font-size: 12px; }
+    .panel { padding: 21px; }
+    .panel h2 { font-size: 20px; margin: 0 0 6px; letter-spacing: -.03em; }
+    .panel-sub { color: var(--muted); margin-bottom: 18px; font-size: 13px; }
+    .compare-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .compare-card { border: 1px solid var(--line); border-radius: 11px; padding: 13px; }
+    .compare-card strong { display: block; margin-bottom: 7px; }
+    .decision { padding: 15px; border-radius: 12px; background: var(--amber-soft); color: #704800; margin-bottom: 21px; }
+    .decision strong { display: block; color: var(--amber); font-size: 17px; margin-bottom: 7px; }
+    .decision p { margin: 0; font-size: 13px; line-height: 1.5; }
+    .section-title { font-weight: 850; margin: 19px 0 10px; }
+    .stacked-bar { display: flex; height: 18px; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+    .stacked-bar span:nth-child(1) { background: #e5a226; }
+    .stacked-bar span:nth-child(2) { background: #c94e43; }
+    .stacked-bar span:nth-child(3) { background: #526fca; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; color: var(--muted); font-size: 12px; }
+    .legend b { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; }
+    .slice { display: grid; grid-template-columns: 1fr 80px; align-items: center; gap: 8px; margin: 12px 0; font-size: 13px; }
+    .slice-line { height: 9px; background: #edf1f7; border-radius: 99px; overflow: hidden; }
+    .slice-line { grid-column: 1 / -1; }
+    .slice-line span { display: block; height: 100%; background: #7895df; border-radius: 99px; }
+    .slice-line span.danger { background: #d65d4e; }
+    .best { margin-top: 22px; }
+    .best-row { display: flex; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid #edf0f5; font-size: 13px; }
+    .best-row:last-child { border-bottom: 0; }
+    .pilot { display: none; }
+    .pilot.active { display: block; }
+    .pilot-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 22px; }
+    .pilot-intro { padding: 22px; background: linear-gradient(135deg, #edf7ff, #f8fbff); border: 1px solid #c6daf8; border-radius: 14px; }
+    .pilot-intro h2 { margin: 0 0 8px; font-size: 27px; letter-spacing: -.03em; }
+    .pilot-intro p { color: var(--muted); line-height: 1.55; margin: 0; }
+    .pilot-result { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 19px; }
+    .pilot-stat { background: white; border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+    .pilot-stat .big { font-size: 25px; font-weight: 900; margin: 5px 0; }
+    .pilot-stat p { color: var(--muted); font-size: 12px; }
+    .insight { padding: 20px; border-radius: 14px; background: var(--navy); color: white; }
+    .insight h3 { margin: 0 0 11px; font-size: 17px; }
+    .insight p { color: #cbd7ee; line-height: 1.55; margin: 0; font-size: 13px; }
+    .pilot-table { margin-top: 22px; min-width: 0; }
+    .pilot-table table { min-width: 0; }
+    .pilot-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 15px; }
+    .footer-grid { margin-top: 25px; padding: 20px 24px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+    .footer-grid strong { display: block; margin-bottom: 8px; font-size: 13px; }
+    .footer-grid p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; }
+    .toast { position: fixed; right: 22px; bottom: 22px; background: var(--navy); color: white; padding: 12px 16px; border-radius: 10px; box-shadow: var(--shadow); opacity: 0; transform: translateY(8px); pointer-events: none; transition: .2s; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 1100px) { .workspace, .pilot-grid { grid-template-columns: 1fr; } .protocol { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 760px) { .shell { padding: 20px 16px 32px; } .nav { align-items: flex-start; flex-direction: column; margin-bottom: 30px; } .nav-links { gap: 15px; flex-wrap: wrap; } .control-grid { grid-template-columns: 1fr; gap: 16px; } .protocol { grid-template-columns: 1fr 1fr; gap: 11px; } .footer-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 480px) { .protocol, .footer-grid { grid-template-columns: 1fr; } .pilot-result { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="top-note">Interactive product prototype. Main-board systems and scores are illustrative placeholders; the pilot view contains the completed public experiment.</div>
+  <main class="shell">
+    <nav class="nav" aria-label="Primary navigation">
+      <div class="brand">Voice<span>Arena</span></div>
+      <div class="nav-links">
+        <button class="nav-link active" data-view="leaderboard">Speaker diarization</button>
+        <button class="nav-link" data-view="methodology">Methodology</button>
+        <button class="nav-link" data-view="pilot">Pilot findings</button>
+        <button class="nav-link" data-view="data">Data card</button>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <h1>Speaker diarization leaderboard</h1>
+      <p>Who spoke when, tested on fresh hidden conversations. Pick your use case, see how sure we are, and shortlist with evidence.</p>
+    </section>
+
+    <section id="leaderboard-view">
+      <div class="control-grid">
+        <div class="control-group">
+          <span class="field-label">Track</span>
+          <div class="segmented" role="group" aria-label="Track">
+            <button class="active" data-track="offline">Offline (full file)</button>
+            <button data-track="live">Live (real time)</button>
+            <button data-track="multi">Multichannel (diagnostic)</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <span class="field-label">Language board</span>
+          <div class="segmented" role="group" aria-label="Language board">
+            <button class="active" data-language="english">English</button>
+            <button data-language="hindi">Hindi · soon</button>
+            <button data-language="mandarin">Mandarin · soon</button>
+            <button data-language="spanish">Spanish · soon</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <span class="field-label">Use case</span>
+          <div class="pills" id="use-case-pills">
+            <button class="pill active" data-usecase="all">All domains (balanced)</button>
+            <button class="pill" data-usecase="meetings">Meetings</button>
+            <button class="pill" data-usecase="calls">Calls</button>
+            <button class="pill" data-usecase="interviews">Interviews / media</button>
+            <button class="pill" data-usecase="noisy">Noisy groups</button>
+          </div>
+        </div>
+      </div>
+      <div class="filters" aria-label="Leaderboard filters">
+        <div class="filter"><label class="field-label" for="type-filter">Type</label><select id="type-filter"><option value="all">All types</option><option value="open">Open-weight</option><option value="api">API</option><option value="asr">ASR + labels</option></select></div>
+        <div class="filter"><label class="field-label" for="speaker-filter">Speakers</label><select id="speaker-filter"><option value="all">Any count</option><option value="4">Up to 4</option><option value="8">Up to 8</option></select></div>
+        <div class="filter"><label class="field-label" for="cost-filter">Max cost / hour</label><select id="cost-filter"><option value="all">Any cost</option><option value="0.4">$0.40</option><option value="0.6">$0.60</option><option value="0.8">$0.80</option></select></div>
+        <div class="filter"><label class="field-label" for="completion-filter">Completion at least</label><select id="completion-filter"><option value="0">Any</option><option value="0.99">99%</option><option value="1">100%</option></select></div>
+        <div class="filter"><label class="field-label" for="sort-filter">Sort by</label><select id="sort-filter"><option value="der">DER</option><option value="jer">JER</option><option value="cost">Cost</option><option value="speed">Speed</option><option value="completion">Completion</option></select></div>
+      </div>
+      <div class="protocol" aria-label="Locked protocol summary">
+        <div><strong>Protocol v1.0</strong> locked</div><div>40 h hidden audio · 160+ sessions</div><div>Mono 16 kHz · no speaker-count hint</div><div>Collar 0 ms · overlap scored</div><div>95% CI · session bootstrap</div><div>Tested 12 Oct 2026</div>
+      </div>
+      <div class="workspace">
+        <div class="card">
+          <div class="table-wrap">
+            <table aria-label="Diarization leaderboard">
+              <thead><tr><th>Rank</th><th>System / version</th><th>DER <span title="Diarization error rate">(lower is better)</span></th><th>JER</th><th>Overlap DER</th><th>Complete</th><th>Cost / audio hr</th><th>p95 speed</th><th>Evidence</th><th>Compare</th></tr></thead>
+              <tbody id="leaderboard-body"></tbody>
+            </table>
+          </div>
+          <div class="table-foot"><span>Sorted by domain-balanced DER. Rank order is not proof; tiers come from paired confidence intervals.</span><span>Sort by: DER · cost · speed · completion</span></div>
+        </div>
+        <aside class="card panel" id="compare-panel" aria-live="polite"></aside>
+      </div>
+    </section>
+
+    <section id="pilot-view" class="pilot" aria-labelledby="pilot-title">
+      <div class="pilot-grid">
+        <div class="pilot-intro">
+          <span class="badge good">Completed public pilot</span>
+          <h2 id="pilot-title">A small experiment, separated from the official board</h2>
+          <p>Three VoxConverse v0.3 test recordings were scored with two self-hosted pyannote pipelines. This view contains real pilot results, but it is not an official leaderboard ranking: the sample is tiny and public audio may have appeared in training data.</p>
+          <div class="pilot-result">
+            <div class="pilot-stat"><span class="field-label">Community-1 aggregate DER</span><div class="big" style="color:var(--teal)">9.87%</div><p>vs 13.87% for pyannote 3.1</p></div>
+            <div class="pilot-stat"><span class="field-label">Relative DER improvement</span><div class="big">28.9%</div><p>4.00 percentage-point absolute reduction</p></div>
+          </div>
+        </div>
+        <div class="insight"><h3>What the pilot suggests</h3><p>Community-1 won on two of three recordings and improved aggregate DER mainly through lower speaker confusion: 4.19% vs 8.20%. False alarm and missed speech were nearly unchanged. It lost on <code>aepyx</code>, so this is directional evidence—not a universal winner claim.</p></div>
+      </div>
+      <div class="card pilot-table">
+        <div class="panel"><h2>Recording-level results</h2><div class="panel-sub">Same 0 ms collar, overlap included, no speaker-count hint. Lower is better.</div></div>
+        <div class="table-wrap"><table aria-label="Pilot recording results"><thead><tr><th>Recording</th><th>pyannote 3.1 DER</th><th>Community-1 DER</th><th>Winner</th><th>What changed</th></tr></thead><tbody><tr><td><strong>aepyx</strong></td><td>11.62%</td><td>13.60%</td><td><span class="status info">3.1</span></td><td>Community-1 had higher confusion</td></tr><tr><td><strong>aggyz</strong></td><td>12.09%</td><td><strong>6.71%</strong></td><td><span class="status neutral">Community-1</span></td><td>5.38-point improvement</td></tr><tr><td><strong>aiqwk</strong></td><td>18.25%</td><td><strong>11.19%</strong></td><td><span class="status neutral">Community-1</span></td><td>7.06-point improvement; JER remains high</td></tr></tbody></table></div>
+        <div class="panel pilot-note"><strong>Exact settings:</strong> <code>pyannote/speaker-diarization-3.1</code> and <code>pyannote/speaker-diarization-community-1</code>, self-hosted through pyannote.audio; default pipeline settings; RTTM output; `pyannote.metrics` DER/JER; collar 0; overlap included. Full result files are available in <code>pilot_data/</code>.</div>
+      </div>
+    </section>
+
+    <section id="methodology-view" class="pilot" aria-labelledby="methodology-title"><div class="card panel"><h2 id="methodology-title">Methodology at a glance</h2><p class="panel-sub">The official board is designed around representative, unseen data and transparent evidence.</p><div class="protocol"><div><strong>Primary metric</strong> domain-balanced DER</div><div><strong>Reference</strong> two annotators + adjudication</div><div><strong>Uncertainty</strong> paired session bootstrap</div><div><strong>Hard speech</strong> overlap and short turns retained</div><div><strong>Tracks</strong> offline, live, multichannel</div><div><strong>Maintenance</strong> versioned protocols</div></div><p>Read the full methodology in <code>Firstname_Lastname_Q1_Main.pdf</code>.</p></div></section>
+    <section id="data-view" class="pilot" aria-labelledby="data-title"><div class="card panel"><h2 id="data-title">Data card</h2><p class="panel-sub">What every score should carry next to it.</p><div class="footer-grid" style="margin:0;padding:0;border:0"><div><strong>Provenance</strong><p>Model ID, resolved version, configuration, adapter hash, run date, region and hardware.</p></div><div><strong>Limits and exposure</strong><p>Language, speaker-count and length limits, license, retention and known training exposure.</p></div><div><strong>Evidence</strong><p>95% CI, session count, completion rate, failure report and slice-level breakdowns.</p></div><div><strong>Trade-offs</strong><p>Cost, speed and live-label stability shown beside accuracy. No single “best” badge.</p></div></div></div></section>
+
+    <section class="card footer-grid" id="footer-notes"><div><strong>Next to every score</strong><p>95% CI, rank tier, session count, protocol version, completion rate and failure report.</p></div><div><strong>Provenance</strong><p>Requested and resolved model ID, configuration, adapter hash, run date, region, hardware or API tier.</p></div><div><strong>Limits and exposure</strong><p>Language, speaker-count and length limits, licence, data retention and known training exposure.</p></div><div><strong>Trade-offs, not verdicts</strong><p>Cost, speed and live-label stability are shown beside accuracy. No single “best” badge.</p></div></section>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    const systems = [
+      { id:'a', name:'System A', version:'v2.1 · GPU A10', type:'open', typeLabel:'Open-weight', host:'self-host', der:11.8, ci:'[10.6, 13.0]', jer:28.9, overlap:23.7, completion:1, cost:.40, speed:.06, tier:'Tier 1: no clear winner within this group', status:'No clear winner vs B', use:['meetings','calls','interviews','noisy'], speakers:8, exposure:false, fa:2.2, miss:4.1, conf:5.5, slices:[['Meetings',10.4],['Calls',8.1],['Interviews',7.0],['Noisy groups',21.7],['Short turns <1 s',34.2]] },
+      { id:'b', name:'System B', version:'requested v3 · resolved v3.2', type:'api', typeLabel:'API', host:'specialist · requested v3, resolved v3.2', der:12.1, ci:'[10.9, 13.3]', jer:30.2, overlap:25.4, completion:.994, cost:.72, speed:1.8, tier:'Tier 1: no clear winner within this group', status:'No clear winner vs A', use:['meetings','calls','interviews','noisy'], speakers:8, exposure:false, fa:2.4, miss:4.5, conf:5.2, slices:[['Meetings',10.8],['Calls',8.7],['Interviews',7.5],['Noisy groups',22.4],['Short turns <1 s',35.1]] },
+      { id:'c', name:'System C', version:'explicit model, no fallback', type:'asr', typeLabel:'ASR + labels', host:'API · explicit model', der:14.6, ci:'[13.3, 15.9]', jer:33.8, overlap:31.9, completion:1, cost:.55, speed:2.4, tier:'Tier 2: meaningfully behind Tier 1 on the paired test', status:'Meaningfully behind A', use:['meetings','calls','interviews'], speakers:8, exposure:false, fa:2.7, miss:4.6, conf:7.3, slices:[['Meetings',12.9],['Calls',11.0],['Interviews',10.1],['Noisy groups',28.4],['Short turns <1 s',39.8]] },
+      { id:'d', name:'System D', version:'public data in training', type:'open', typeLabel:'Open-weight', host:'self-host', der:15.3, ci:'[13.8, 16.8]', jer:35.0, overlap:29.8, completion:1, cost:.38, speed:.05, tier:'Tier 2: meaningfully behind Tier 1 on the paired test', status:'No clear winner vs C', use:['meetings','calls','interviews','noisy'], speakers:8, exposure:true, fa:2.8, miss:5.0, conf:7.5, slices:[['Meetings',13.3],['Calls',11.9],['Interviews',11.5],['Noisy groups',30.2],['Short turns <1 s',41.2]] },
+      { id:'e', name:'System E', version:'API · max 8 speakers', type:'asr', typeLabel:'ASR + labels', host:'API · max 8 speakers', der:17.9, ci:'[16.2, 19.6]', jer:38.7, overlap:36.1, completion:.969, cost:.30, speed:3.1, tier:'Tier 2: meaningfully behind Tier 1 on the paired test', status:'Cheaper trade-off', use:['meetings','calls','interviews','noisy'], speakers:8, exposure:false, fa:3.1, miss:5.3, conf:9.5, slices:[['Meetings',15.9],['Calls',14.2],['Interviews',13.7],['Noisy groups',34.6],['Short turns <1 s',45.7]] },
+      { id:'f', name:'System F', version:'4-speaker limit · older baseline', type:'open', typeLabel:'Open-weight', host:'4-speaker limit · older baseline', der:22.4, ci:'[20.3, 24.5]', jer:44.1, overlap:41.7, completion:.912, cost:.31, speed:.04, tier:'Tier 3: baselines and limited-capacity systems', status:'Fails on 5+ speakers', use:['meetings','calls'], speakers:4, exposure:false, fa:3.7, miss:7.2, conf:11.5, slices:[['Meetings',20.3],['Calls',18.1],['Interviews',24.7],['Noisy groups',41.4],['Short turns <1 s',52.1]] }
+    ];
+    let selected = ['a','b'];
+    let activeView = 'leaderboard';
+    let filters = { usecase:'all', type:'all', speakers:'all', cost:'all', completion:'0', sort:'der' };
+    const $ = (id) => document.getElementById(id);
+    const pct = (value) => `${(value * 100).toFixed(1)}%`;
+    const speed = (value) => value < 1 ? `${value.toFixed(2)}× RT` : `${value.toFixed(1)} s / min`;
+    const visibleSystems = () => systems.filter(s => {
+      if (filters.usecase !== 'all' && !s.use.includes(filters.usecase)) return false;
+      if (filters.type !== 'all' && s.type !== filters.type) return false;
+      if (filters.speakers !== 'all' && s.speakers > Number(filters.speakers)) return false;
+      if (filters.cost !== 'all' && s.cost > Number(filters.cost)) return false;
+      if (s.completion < Number(filters.completion)) return false;
+      return true;
+    }).sort((a,b) => {
+      const key = filters.sort;
+      return (key === 'completion' ? b.completion - a.completion : key === 'cost' ? a.cost - b.cost : key === 'speed' ? a.speed - b.speed : key === 'jer' ? a.jer - b.jer : a.der - b.der);
+    });
+    function badge(s) { return `<span class="badge ${s.type}">${s.typeLabel}</span>${s.exposure ? '<span class="badge exposed">Exposed</span>' : ''}`; }
+    function scoreBar(s) { const left = Math.max(5, Math.min(95, s.der * 4)); return `<div class="metric-bar"><i style="left:${Math.max(0,left-10)}%;width:20%"></i><span style="left:${left}%"></span></div>`; }
+    function renderTable() {
+      const rows = visibleSystems();
+      let html = '';
+      let lastTier = '';
+      rows.forEach((s, index) => {
+        if (s.tier !== lastTier) { html += `<tr class="tier-row"><td colspan="10">${s.tier}</td></tr>`; lastTier = s.tier; }
+        const checked = selected.includes(s.id) ? 'checked' : '';
+        html += `<tr><td><strong>${index + 1}</strong></td><td><div class="system-name">${s.name}</div><div class="badges">${badge(s)}</div><div class="system-meta">${s.host}<br>${s.version}</div></td><td><div class="score">${s.der.toFixed(1)}%</div><div class="ci">${s.ci}</div>${scoreBar(s)}</td><td>${s.jer.toFixed(1)}%</td><td>${s.overlap.toFixed(1)}%</td><td class="${s.completion < 1 ? 'status bad' : ''}">${pct(s.completion)}</td><td>$${s.cost.toFixed(2)}<br><span class="system-meta">compute</span></td><td>${speed(s.speed)}</td><td><span class="status ${s.status.startsWith('Meaningfully') ? 'bad' : s.status.startsWith('Cheaper') ? 'info' : 'neutral'}">${s.status}</span></td><td><input class="select-system" type="checkbox" data-select="${s.id}" ${checked} aria-label="Compare ${s.name}"></td></tr>`;
+      });
+      $('leaderboard-body').innerHTML = html || '<tr><td colspan="10" class="system-meta">No systems pass these filters. Try a wider cost or completion limit.</td></tr>';
+      document.querySelectorAll('[data-select]').forEach(input => input.addEventListener('change', () => toggleSelection(input.dataset.select, input.checked)));
+    }
+    function renderCompare() {
+      const chosen = selected.map(id => systems.find(s => s.id === id)).filter(Boolean).slice(0,2);
+      if (chosen.length < 2) { $('compare-panel').innerHTML = `<h2>Compare systems</h2><div class="panel-sub">Select two rows to compare the same sessions with paired evidence.</div><div class="decision"><strong>Select two systems</strong><p>The comparison will show DER, confidence intervals, error sources, slices, cost, speed and limitations.</p></div>`; return; }
+      const [a,b] = chosen; const diff = a.der - b.der; const better = diff < 0 ? a.name : b.name;
+      const clear = Math.abs(diff) >= .5 && ((Math.abs(diff) / Math.max(a.der,b.der)) >= .05);
+      const decision = clear ? `${better} has a point-estimate lead` : 'No clear winner';
+      const ci = clear ? '[illustrative CI excludes 0]' : 'interval includes zero and is under the 0.5-point threshold';
+      $('compare-panel').innerHTML = `<h2>Compare: ${a.name} vs ${b.name}</h2><div class="panel-sub">Same 160+ sessions, paired test. Illustrative main-board values.</div><div class="compare-cards"><div class="compare-card"><strong>${a.name}</strong><span>DER ${a.der.toFixed(1)}% · $${a.cost.toFixed(2)}/hr</span></div><div class="compare-card"><strong>${b.name}</strong><span>DER ${b.der.toFixed(1)}% · $${b.cost.toFixed(2)}/hr</span></div></div><div class="decision"><strong>${decision}</strong><p>DER difference ${diff >= 0 ? '+' : ''}${diff.toFixed(1)} percentage points; ${ci}. Use the score as a shortlist aid, not a universal verdict.</p></div><div class="section-title">Where errors come from (${a.name})</div><div class="stacked-bar"><span style="width:${a.fa}%"></span><span style="width:${a.miss}%"></span><span style="width:${a.conf}%"></span></div><div class="legend"><span><b style="background:#e5a226"></b>False alarm ${a.fa.toFixed(1)}</span><span><b style="background:#c94e43"></b>Missed ${a.miss.toFixed(1)}</span><span><b style="background:#526fca"></b>Confusion ${a.conf.toFixed(1)}</span></div><div class="section-title">DER by slice</div>${a.slices.map(([label,value]) => `<div class="slice"><span>${label}</span><strong>${value.toFixed(1)}%</strong><div class="slice-line"><span class="${value > 30 ? 'danger' : ''}" style="width:${Math.min(100,value*2.5)}%"></span></div></div>`).join('')}<div class="best"><div class="section-title">Best for me</div><div class="best-row"><span>Overlap DER must be below</span><strong>30%</strong></div><div class="best-row"><span>Completion at least</span><strong>99%</strong></div><div class="best-row"><span>Then sort by</span><strong>Cost per hour</strong></div></div>`;
+    }
+    function toggleSelection(id, checked) { if (checked) { if (!selected.includes(id)) selected.push(id); if (selected.length > 2) selected.shift(); } else selected = selected.filter(x => x !== id); renderTable(); renderCompare(); }
+    function showView(view) { activeView = view; document.querySelectorAll('.pilot').forEach(el => el.classList.remove('active')); $('leaderboard-view').style.display = view === 'leaderboard' ? 'block' : 'none'; if (view === 'pilot') $('pilot-view').classList.add('active'); if (view === 'methodology') $('methodology-view').classList.add('active'); if (view === 'data') $('data-view').classList.add('active'); document.querySelectorAll('.nav-link').forEach(el => el.classList.toggle('active', el.dataset.view === view || (view === 'leaderboard' && el.textContent.includes('Speaker')))); window.scrollTo({top:0,behavior:'smooth'}); }
+    document.querySelectorAll('[data-view]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+    document.querySelectorAll('[data-track]').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('[data-track]').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); if (btn.dataset.track !== 'offline') showToast('This prototype keeps live and multichannel tracks separate; the current demo data is for Offline.'); }));
+    document.querySelectorAll('[data-language]').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('[data-language]').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); if (btn.dataset.language !== 'english') showToast('This language board is marked “soon” in the product concept.'); }));
+    document.querySelectorAll('[data-usecase]').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('[data-usecase]').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); filters.usecase = btn.dataset.usecase; renderTable(); }));
+    ['type-filter','speaker-filter','cost-filter','completion-filter','sort-filter'].forEach(id => $(id).addEventListener('change', e => { const map={ 'type-filter':'type','speaker-filter':'speakers','cost-filter':'cost','completion-filter':'completion','sort-filter':'sort' }; filters[map[id]]=e.target.value; renderTable(); }));
+    function showToast(text) { const toast=$('toast'); toast.textContent=text; toast.classList.add('show'); clearTimeout(window._toast); window._toast=setTimeout(()=>toast.classList.remove('show'),2600); }
+    renderTable(); renderCompare();
+  </script>
+</body>
+</html>
